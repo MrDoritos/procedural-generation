@@ -50,37 +50,18 @@ class terrain {
 		float noiseSampler(float x, float y) {
 			float noise = perlin::getPerlin(x, y);			
 			
-			//--// noise = (noise * multiplier) + multiplier;
+			//Linear transform -1:1 to 0:1
 			return (noise + 1.0f)/(1.0f + 1.0f) * (1.0f);
 		}
 		
 		float* generateNoiseMap(float* noiseMap, int mapDepth, int mapWidth, float scale) {
-			//const auto map = [](float v) {
-				//v should come in a range of -1 to 1
-				//We want 256 values
-			//	return (v * multiplier) + multiplier;
-			//};
-		
 			for (int zIndex = 0; zIndex < mapDepth; zIndex++) {
 				for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
 					float sampleX = xIndex / scale;
-					float sampleZ = zIndex / scale;
-					
-					//random::seed(sampleX, sampleZ);
-					//float noise = float(random::getDouble(0.0d, 255.0d));
-					//float noise = perlin::getPerlin(sampleX + posX, sampleZ + posY);// * multiplier;
-					
-					////noise = (noise * 128) + 128;
-					//noise = (noise * multiplier) + multiplier;
-					
-					//noise = (noise * 0.5) + (multiplier/ 10); //Better results
-					
-					//noise = (noise * perlin::persistence) + perlin::persistence;
-					
+					float sampleZ = zIndex / scale;					
 					noiseMap[(zIndex * mapWidth) + xIndex] = noiseSampler(sampleX + posX, sampleZ + posY);
 				}
-			}
-			
+			}			
 			return noiseMap;
 		}	
 		
@@ -89,31 +70,20 @@ class terrain {
 			return (perc >= min && perc <= max);
 		}
 		
-		//int getChar(float normal, float count) {
-		//	return (int)floorf(normal * count);
-		//}
-	
 		void showNoiseMap(float* map, int mapDepth, int mapWidth) {
-			//clear();
-			//Values from 0 to 255
 			const auto generateValue = [](float* normal, char* color, char* character) {
-				//Black being the least value, and white being the most
 				const char v[] = { " .:-=+%*#@" };
-				//uint8_t value = uint8_t(normal);// * 255.0f); //Black 0000 0000 as background
-										   //White 1000 0000 as background
 				float value = *normal;
 				
 				const auto getChar = [value,v](float min, float max) {
 					float val = value * 100;
 					float nom = (val / max);
 					return v[int(floorf(nom * 10))];
-					//return v[int(floorf(value * 10))];
 				};
 				
 				if(terrain::range(value, 0, 25)) {
 					*color = BBLUE | FBLUE;
 					*normal = 0.5f;
-					//*character = getChar(0, 25);
 				} else
 				if (terrain::range(value, 25, 50)) {
 					*color = BBLUE | FWHITE;					
@@ -126,50 +96,30 @@ class terrain {
 				} else 
 				if (terrain::range(value, 90, 100)) {
 					*color = BGREEN | FGREEN;
-					//*character = getChar(90, 100);
 				}
-				
-				//fprintf(stderr, " %f", value);
-				
-				
-				//fprintf(stderr, "[%i,%f,%i,%c]", value, normal, *color, *character);
 				return;
 			};
-			//3525596787472762756
-			//1360 7000
+			
 			float modifiedHeight;
 			if (overlay)
 				modifiedHeight = height / 2;
 			else
 				modifiedHeight = height;
 			
-			
-			
-			//for (int zIndex = 0; zIndex < mapDepth / 2; zIndex++) {
 			for (int zIndex = 0; zIndex < modifiedHeight; zIndex++) {
 				for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
 					int colorIndex = zIndex * mapWidth + xIndex;
-					//--// float height = map[(zIndex * mapWidth) + xIndex];
-					float normal = map[(zIndex * mapWidth) + xIndex];
-					
+					float normal = map[(zIndex * mapWidth) + xIndex];				
 					char color = 0, character = 0;
-					//generateValue(height / 255.0f, &color, &character);// / 255.0f, &color, &character);
-					//float normal = height / (multiplier * 2 - 1);
-					
-					//--// float normal = height / (multiplier * 2 - 1);
-					
-					
 					generateValue(&normal, &color, &character);
-					//map[colorIndex] = normal * (multiplier / 2 + 1);
 					cb[colorIndex] = color;
 					fb[colorIndex] = character;
-					//fprintf(stderr, "[%f,%i,%c]", height, color, character);
 				}
 			}
 			
 			if (overlay)
 			for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
-				float normal = map[(1 * width) + xIndex]; //--// / (multiplier * 2 - 1);
+				float normal = map[(1 * width) + xIndex];
 				char color = 0, character = 0;
 				float bad = normal;
 				generateValue(&normal, &color, &character); //
@@ -182,9 +132,7 @@ class terrain {
 						cb[(((height) - y - 1) * width) + xIndex] = BBLACK | FBLACK;
 					}
 				}
-			}
-			//write();
-			
+			}			
 			return;
 		}
 	
@@ -256,18 +204,13 @@ class terrain {
 					if (size < 50) size += 1;
 					break;
 					case '.':
-					//Save screenshot
 					screenshot();
 					break;
 					case '1':
 					scale -= 0.1f;
-					//posY += (height * 0.5f) * 0.1f;
-					//posX -= (width * 0.5f) * 0.1f;
 					break;
 					case '2':
 					scale += 0.1f;
-					//posY -= (height * 0.5f) * 0.1f;
-					//posX += (width * 0.5f) * 0.1f;
 					break;
 					case 'w':
 					posY -= walkMult / scale;
@@ -295,8 +238,6 @@ class terrain {
 		float* map;
 				
 		void screenshot() {
-			//const int size = 25;
-			
 			std::vector<unsigned char> rawImage;
 			rawImage.resize((width * size) * (height * size) * 4);
 	
@@ -314,7 +255,8 @@ class terrain {
 					float nom = ((val - min) / max);
 					return nom * 255;
 				};
-				/*
+				
+				/* // Heightmap
 				pixel->blue = convertRange(0, 100);
 				pixel->red = convertRange(0, 100);
 				pixel->green = convertRange(0, 100);
@@ -354,7 +296,6 @@ class terrain {
 			for (int x = 0; x < image.getSizeX(); x++) {
 				for (int y = 0; y < image.getSizeY(); y++) {
 					pixel* p = image.getPixel(x, y);
-					//--// generateValue(noiseSampler(posX + x / newScaleX, posY + y / newScaleY) / (multiplier * 2 - 1), p);
 					generateValue(noiseSampler(posX + x / newScaleX, posY + y / newScaleY), p);
 				}
 				int val = int((float(x) / float(image.getSizeX())) * 100.0f);
@@ -365,7 +306,6 @@ class terrain {
 						
 			image.deconvert(rawImage);
 			
-			//int i = rand() % 1000000 + 1000000;
 			time_t timer;
 			time(&timer);
 			std::string integer = std::to_string(timer);
@@ -383,8 +323,6 @@ class terrain {
 			while (run) {				
 				showNoiseMap(generateNoiseMap(map, height, width, scale), height, width);
 				sprintf(ll, "Oct %f Per %f Scl %f Mult %f [%f %f] (%fx) [%ix]", perlin::octaves, perlin::persistence, scale, multiplier, posX, posY, walkMult, size);
-				//std::string str(ll);
-				//console::write(0,0, str);
 				for (int i = 0; i < 100 && i < width; i++) {
 					if (ll[i] == '\0')
 						break;
