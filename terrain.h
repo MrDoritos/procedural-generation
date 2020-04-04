@@ -1,0 +1,309 @@
+#pragma once
+#include <string>
+#include <bits/stdc++.h>
+#include "random.h"
+#include "console.h"
+
+
+class biome {
+	public:
+		float baseHeight;
+		float heightVariation;
+		float temperature;
+		float rainfall;
+		int waterColor;
+		bool enableSnow;
+		bool enableRain;
+		int topBlockColor;
+		int fillerBlock;
+		int biomeId;	
+		
+		void genTerrainBlocks(int x, int y, float noiseVal) {
+			
+		}
+		
+		void generateBiomeTerrain(int x, int y, float noiseVal) {
+			int i = 63; //Sea level
+			int j = -1;
+			int k = (int)(noiseVal / 3.0f + 3.0f + random::getDouble() * 0.25f);
+			int l = x & 25;
+			int i1 = y & 15;			
+		}
+};
+
+class terrain {
+	public:
+	
+		int width, height;
+	
+		char* cb;
+		char* fb;
+		
+		float* generateNoiseMap(float* noiseMap, int mapDepth, int mapWidth, float scale) {
+			//const auto map = [](float v) {
+				//v should come in a range of -1 to 1
+				//We want 256 values
+			//	return (v * multiplier) + multiplier;
+			//};
+		
+			for (int zIndex = 0; zIndex < mapDepth; zIndex++) {
+				for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
+					float sampleX = xIndex / scale;
+					float sampleZ = zIndex / scale;
+					
+					//random::seed(sampleX, sampleZ);
+					//float noise = float(random::getDouble(0.0d, 255.0d));
+					float noise = perlin::getPerlin(sampleX + posX, sampleZ + posY);// * multiplier;
+					
+					////noise = (noise * 128) + 128;
+					noise = (noise * multiplier) + multiplier;
+					
+					//noise = (noise * 0.5) + (multiplier/ 10); //Better results
+					
+					//noise = (noise * perlin::persistence) + perlin::persistence;
+					
+					noiseMap[(zIndex * mapWidth) + xIndex] = noise;
+				}
+			}
+			
+			return noiseMap;
+		}	
+		
+		static bool range(float normal, float min, float max) { //min max in percent
+			float perc = normal * 100.0f;
+			return (perc >= min && perc <= max);
+		}
+		
+		//int getChar(float normal, float count) {
+		//	return (int)floorf(normal * count);
+		//}
+	
+		void showNoiseMap(float* map, int mapDepth, int mapWidth) {
+			//clear();
+			//Values from 0 to 255
+			const auto generateValue = [](float* normal, char* color, char* character) {
+				//Black being the least value, and white being the most
+				const char v[] = { " .:-=+%*#@" };
+				//uint8_t value = uint8_t(normal);// * 255.0f); //Black 0000 0000 as background
+										   //White 1000 0000 as background
+				float value = *normal;
+				
+				const auto getChar = [value,v](float min, float max) {
+					float val = value * 100;
+					float nom = (val / max);
+					return v[int(floorf(nom * 10))];
+					//return v[int(floorf(value * 10))];
+				};
+				
+				if(terrain::range(value, 0, 25)) {
+					*color = BBLUE | FBLUE;
+					*normal = 0.5f;
+					//*character = getChar(0, 25);
+				} else
+				if (terrain::range(value, 25, 50)) {
+					*color = BBLUE | FWHITE;					
+					*character = getChar(25, 50);
+					*normal = 0.5f;
+				} else
+				if (terrain::range(value, 50, 90)) {
+					*color = BCYAN | FGREEN;
+					*character = getChar(50, 90);
+				} else 
+				if (terrain::range(value, 90, 100)) {
+					*color = BGREEN | FGREEN;
+					//*character = getChar(90, 100);
+				}
+				
+				//fprintf(stderr, " %f", value);
+				
+				
+				//fprintf(stderr, "[%i,%f,%i,%c]", value, normal, *color, *character);
+				return;
+			};
+			//3525596787472762756
+			//1360 7000
+			float modifiedHeight;
+			if (overlay)
+				modifiedHeight = height / 2;
+			else
+				modifiedHeight = height;
+			
+			
+			
+			//for (int zIndex = 0; zIndex < mapDepth / 2; zIndex++) {
+			for (int zIndex = 0; zIndex < modifiedHeight; zIndex++) {
+				for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
+					int colorIndex = zIndex * mapWidth + xIndex;
+					float height = map[(zIndex * mapWidth) + xIndex];
+					char color = 0, character = 0;
+					//generateValue(height / 255.0f, &color, &character);// / 255.0f, &color, &character);
+					//float normal = height / (multiplier * 2 - 1);
+					float normal = height / (multiplier * 2 - 1);
+					generateValue(&normal, &color, &character);
+					//map[colorIndex] = normal * (multiplier / 2 + 1);
+					cb[colorIndex] = color;
+					fb[colorIndex] = character;
+					//fprintf(stderr, "[%f,%i,%c]", height, color, character);
+				}
+			}
+			
+			if (overlay)
+			for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
+				float normal = map[(1 * width) + xIndex] / (multiplier * 2 - 1);
+				char color = 0, character = 0;
+				float bad = normal;
+				generateValue(&normal, &color, &character); //
+				float nN = normal * (modifiedHeight);
+				for (int y = 0; y < modifiedHeight; y++) {
+					if (nN > y) {
+						fb[(((height) - y - 1) * width) + xIndex] = character;
+						cb[(((height) - y - 1) * width) + xIndex] = color;
+					} else {
+						cb[(((height) - y - 1) * width) + xIndex] = BBLACK | FBLACK;
+					}
+				}
+			}
+			//write();
+			
+			return;
+		}
+	
+		terrain() {
+			initialize();
+		}
+		
+		terrain(int x, int y) {
+			initialize();
+			posX = x;
+			posY = y;
+		}
+		
+		bool overlay;
+		
+		float walkMult;
+		
+		void initialize() {
+			updateConsoleSize();
+			allocate();
+			run = true;
+			multiplier = 1.00f;			
+			walkMult = 1.0f;
+			scale = 6.4f;
+			posX = 41.0f;
+			posY = 49.0f;
+			perlin::persistence = 0.0f;
+			perlin::octaves = 8.0f;						
+			overlay = false;
+		}
+		
+		void handleInput() {
+			switch (console::readKey()) {
+					case 'q': 
+					run = false;
+					break;
+					case '3':
+					overlay = !overlay;
+					break;
+					case '7':
+					multiplier += 0.50f;
+					break;
+					case '4':
+					multiplier -= 0.50f;
+					break;
+					case '-':
+					walkMult -= 5.0f;
+					break;
+					case '+':
+					walkMult += 5.0f;
+					break;
+					case '8':
+					perlin::octaves += 1.0f;
+					break;
+					case '5':
+					perlin::octaves -= 1.0f;
+					break;
+					case '9':
+					perlin::persistence += 0.05f;
+					break;
+					case '6':
+					perlin::persistence -= 0.05f;
+					break;
+					case '1':
+					scale -= 0.1f;
+					//posY += (height * 0.5f) * 0.1f;
+					//posX -= (width * 0.5f) * 0.1f;
+					break;
+					case '2':
+					scale += 0.1f;
+					//posY -= (height * 0.5f) * 0.1f;
+					//posX += (width * 0.5f) * 0.1f;
+					break;
+					case 'w':
+					posY -= walkMult / scale;
+					break;
+					case 's':
+					posY += walkMult / scale;
+					break;
+					case 'a':
+					posX -= walkMult / scale;
+					break;
+					case 'd':
+					posX += walkMult / scale;
+					break;
+			}
+		}			
+		
+		float posX, posY;
+		
+		bool run;
+		
+		float multiplier;		
+		
+		float scale;
+		
+		float* map;
+				
+		void loop() {			
+			char ll[100];
+			while (run) {				
+				showNoiseMap(generateNoiseMap(map, height, width, scale), height, width);
+				sprintf(ll, "Oct %f Per %f Scl %f Mult %f [%f %f] (%fx)", perlin::octaves, perlin::persistence, scale, multiplier, posX, posY, walkMult);
+				//std::string str(ll);
+				//console::write(0,0, str);
+				for (int i = 0; i < 100 && i < width; i++) {
+					if (ll[i] == '\0')
+						break;
+					fb[i] = ll[i];
+					cb[i] = FWHITE | 00001000 | BBLACK;
+				}
+				write();
+				handleInput();
+			}
+		}
+		
+		void updateConsoleSize() {
+			width = console::getConsoleWidth();
+			height = console::getConsoleHeight();
+		}
+	
+		void allocate() {
+			cb = new char[width * height];
+			fb = new char[width * height];
+			map = new float[width * height];
+			clear();
+		}
+	
+		void clear() {
+			clearBuffer();
+			write();
+		}
+	
+		void clearBuffer() {
+			memset(fb, ' ', width * height);
+			memset(cb, FWHITE | BBLACK, width * height);			
+		}
+	
+		void write() {
+			console::write(fb, cb, width * height);
+		}		
+};
