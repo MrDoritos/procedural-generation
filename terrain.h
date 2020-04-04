@@ -7,45 +7,25 @@
 #include "png.h"
 #include "pixel.h"
 #include <vector>
-#include <ctime>
 #include <time.h>
 
-
-class biome {
-	public:
-		float baseHeight;
-		float heightVariation;
-		float temperature;
-		float rainfall;
-		int waterColor;
-		bool enableSnow;
-		bool enableRain;
-		int topBlockColor;
-		int fillerBlock;
-		int biomeId;	
-		
-		void genTerrainBlocks(int x, int y, float noiseVal) {
-			
-		}
-		
-		void generateBiomeTerrain(int x, int y, float noiseVal) {
-			int i = 63; //Sea level
-			int j = -1;
-			int k = (int)(noiseVal / 3.0f + 3.0f + random::getDouble() * 0.25f);
-			int l = x & 25;
-			int i1 = y & 15;			
-		}
-};
-
 class terrain {
-	public:
-	
+	public:	
 		int width, height;
+		int size;
 	
 		char* cb;
-		char* fb;
+		char* fb;		
 		
-		int size;
+		bool overlay;
+		bool run;
+		
+		float walkMult;		
+		float posX, posY;
+		float multiplier;	
+		float scale;
+		//TO-DO Refactor this. No need to generate the noise all at once.
+		float* map;
 		
 		float noiseSampler(float x, float y) {
 			float noise = perlin::getPerlin(x, y);			
@@ -54,6 +34,7 @@ class terrain {
 			return (noise + 1.0f)/(1.0f + 1.0f) * (1.0f);
 		}
 		
+		//Generate a perlin noise map. Scale, for the camera.
 		float* generateNoiseMap(float* noiseMap, int mapDepth, int mapWidth, float scale) {
 			for (int zIndex = 0; zIndex < mapDepth; zIndex++) {
 				for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
@@ -65,11 +46,13 @@ class terrain {
 			return noiseMap;
 		}	
 		
-		static bool range(float normal, float min, float max) { //min max in percent
+		//Take a normal and see if it is in a range of percents
+		static bool range(float normal, float min, float max) {
 			float perc = normal * 100.0f;
 			return (perc >= min && perc <= max);
 		}
 		
+		//Display the noise to the camera; print to screen.
 		void showNoiseMap(float* map, int mapDepth, int mapWidth) {
 			const auto generateValue = [](float* normal, char* color, char* character) {
 				const char v[] = { " .:-=+%*#@" };
@@ -81,6 +64,7 @@ class terrain {
 					return v[int(floorf(nom * 10))];
 				};
 				
+				//Terrain color, and characters to represent a change in elevation / distinguish changes in land color
 				if(terrain::range(value, 0, 25)) {
 					*color = BBLUE | FBLUE;
 					*normal = 0.5f;
@@ -91,7 +75,7 @@ class terrain {
 					*normal = 0.5f;
 				} else
 				if (terrain::range(value, 50, 90)) {
-					*color = BCYAN | FGREEN;
+					*color = BCYAN | FGREEN; //TO-DO Should not be cyan, fix console library
 					*character = getChar(50, 90);
 				} else 
 				if (terrain::range(value, 90, 100)) {
@@ -106,6 +90,7 @@ class terrain {
 			else
 				modifiedHeight = height;
 			
+			//Top down view
 			for (int zIndex = 0; zIndex < modifiedHeight; zIndex++) {
 				for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
 					int colorIndex = zIndex * mapWidth + xIndex;
@@ -117,6 +102,7 @@ class terrain {
 				}
 			}
 			
+			//The cross section view
 			if (overlay)
 			for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
 				float normal = map[(1 * width) + xIndex];
@@ -145,10 +131,6 @@ class terrain {
 			posX = x;
 			posY = y;
 		}
-		
-		bool overlay;
-		
-		float walkMult;
 		
 		void initialize() {
 			updateConsoleSize();
@@ -227,17 +209,9 @@ class terrain {
 			}
 		}			
 		
-		float posX, posY;
-		
-		bool run;
-		
-		float multiplier;		
-		
-		float scale;
-		
-		float* map;
-				
 		void screenshot() {
+			
+			//This is a shitty way of creating a PNG. Fix? Nah. (Too much memory goes to waste, luckily no leaks :) )
 			std::vector<unsigned char> rawImage;
 			rawImage.resize((width * size) * (height * size) * 4);
 	
@@ -303,7 +277,8 @@ class terrain {
 				std::string progress = pro + "% complete ";
 				console::write(0,0,progress);
 			}
-						
+			
+			//This is why it's shitty
 			image.deconvert(rawImage);
 			
 			time_t timer;
