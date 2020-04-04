@@ -8,17 +8,18 @@
 
 //#include "lodepng.h"
 #include "console.h"
-#include "imath.h"
 //#include "png.h"
 
 #include "random.h"
 #include "terrain.h"
+//#include "terrain3d.h"
 //#include "galaxy.h"
 
 using namespace std;
 
 int main(int argc, char** argv) {
 	terrain terra;
+	//terrain3d terra;
 	terra.loop();
 	//while (console::readKey() != 'q');
 	//random::seed(0,232);
