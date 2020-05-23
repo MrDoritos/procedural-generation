@@ -28,7 +28,7 @@ class terrain {
 		//TO-DO Refactor this. No need to generate the noise all at once.
 		float* map;
 		int algorithm = 1;
-		int algorithmCount = 2;
+		int algorithmCount = 3;
 		
 		
 		float noiseSampler(float x, float y) {
@@ -150,6 +150,7 @@ class terrain {
 			perlin::octaves = 8.0f;						
 			overlay = false;
 			size = 5;
+			initThreadPool(width, height);
 		}
 		
 		void handleInput() {
@@ -375,8 +376,90 @@ class terrain {
 		
 		#endif
 		
+		const static int maxThreads = 8;
+		static int workerComplete;
+		static std::mutex workerCompleteLocker;
+		
+		struct workerThread {
+			//Seperate into 8
+			int ox, oy;
+			int sx, sy;
+			double px, py;
+			char* cb;
+			char* fb;
+			std::mutex mux;
+			bool alive = true;
+			std::condition_variable cvStart;
+			std::thread thread;
 			
-		void mapValue(double value, char& ch, char& color) {
+			void start(int ox, int oy, int sx, int sy, double px, double py) {
+				this->ox = ox;
+				this->oy = oy;
+				this->sx = sx;
+				this->sy = sy;
+				this->px = px;
+				this->py = py;
+				std::unique_lock<std::mutex> lm(mux);
+				cvStart.notify_one();
+			}
+			
+			void createTerrain() {
+				while (alive) {
+					std::unique_lock<std::mutex> lm(mux);
+					cvStart.wait(lm);
+					
+					for (int x = ox; x < sx; x++) {
+						for (int y = oy; y < sy; y++) {
+							double noise = getMasterNoise(x + px, y + py);
+							char c, color;
+							mapValue(noise, c, color);
+							fb[(y - oy) * (sx - ox) + (x - ox)] = c;
+							cb[(y - oy) * (sx - ox) + (x - ox)] = color;
+						}						
+					}
+					
+					{
+						std::unique_lock<std::mutex> l(workerCompleteLocker);
+						workerComplete++;
+					}
+				}
+			}
+		} workers[maxThreads];
+		
+		void initThreadPool(int width, int height) {			
+			for (int i = 0; i < maxThreads; i++) {
+				workers[i].alive = true;
+				workers[i].cb = new char[height * (width / maxThreads)];
+				workers[i].fb = new char[height * (width / maxThreads)];
+				workers[i].thread = std::thread(&workerThread::createTerrain, &workers[i]);
+			}
+		}
+		
+		void createTerrainThreadPool(int width, int height) {
+			int sectionWidth = width / maxThreads;
+			for (int i = 0; i < maxThreads; i++) {
+				workers[i].start(sectionWidth * i, 0, (sectionWidth * i) + sectionWidth, height, posX, posY);
+			}
+			
+			while (workerComplete < maxThreads);
+			
+			//copy to fb
+			for (int i = 0; i < maxThreads; i++) {
+				workerThread* worker = &workers[i];
+				//fprintf(stderr, "%i:%i:%i\r\n", i, 0, 0);
+				for (int x = worker->ox; x < worker->sx; x++) {
+					for (int y = worker->oy; y < worker->sy; y++) {
+						fb[(y * width) + x] = worker->fb[((y - worker->oy) * (worker->sx - worker->ox)) + (x - worker->ox)];
+						cb[(y * width) + x] = worker->cb[((y - worker->oy) * (worker->sx - worker->ox)) + (x - worker->ox)];
+						//fb[(y * (i * sectionWidth)) + x] = '#';
+						// = worker->fb[y * worker->sx + x];
+						//cb[(y * width) + x] = worker->cb[((y - worker->oy) * width) + (x - worker->ox)];
+					}
+				}
+			}
+		}
+			
+		static void mapValue(double value, char& ch, char& color) {
 			const char  clvls[] = " -+##+- ";
 			const char colors[] = { FBLUE, FWHITE, FYELLOW, FGREEN, FGREEN };
 			
@@ -505,6 +588,10 @@ class terrain {
 					showNewAlgorithm();
 					noise = getMasterNoise(px,py);
 				}
+				if (algorithm == 2) {
+					createTerrainThreadPool(width, height);
+					noise = getMasterNoise(px,py);
+				}
 				sprintf(ll, "Oct %.2f Per %.2f Scl %.2f Mult %.2f [%.2f %.2f] (%.2fx) [%ix] %i w:%i h:%i v:%.2f s:%.2f", perlin::octaves, perlin::persistence, scale, multiplier, posX, posY, walkMult, size, algorithm, width, height, noise, sensitivity);
 				for (int i = 0; i < 100 && i < width; i++) {
 					if (ll[i] == '\0')
@@ -544,12 +631,23 @@ class terrain {
 		void write() {
 			console::write(fb, cb, width * height);
 		}		
+		
+		~terrain() {
+			for (int i = 0; i < maxThreads; i++) {
+				workers[i].alive = false;
+				workers[i].cvStart.notify_one();
+				workers[i].thread.join();			
+			}
+		}
 };
 
 float terrain::posX;
 float terrain::posY;
 float terrain::scale;
 float terrain::multiplier;
+int terrain::workerComplete;
+std::mutex terrain::workerCompleteLocker;
+//int terrain::maxThreads = 8;
 
 int main() {
 	terrain terra;
