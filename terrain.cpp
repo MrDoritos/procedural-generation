@@ -146,7 +146,7 @@ class terrain {
 			posX = 41.0f;
 			posY = 49.0f;
 			perlin::persistence = 0.0f;
-			sensitivity = 1.001f;
+			sensitivity = 50000000.001f;
 			perlin::octaves = 8.0f;						
 			overlay = false;
 			size = 5;
@@ -543,10 +543,13 @@ class terrain {
 				for (double z = 0; z < modifiedHeight; z++) {
 					double l = getMasterNoise(x,z);
 					double y = 0;
-					for (int i = 0; i < sizeof(biomes) / sizeof(biomes[0]); i++) {
-						if ((i - 1.0f) / n <= l && l <= (i + 1.0f) / n)
-							y += (-abs(n * l - i) + 1) * biomes[i]->getValueAt((x / scale) + posX, (z / scale) + posY);
-					}
+					//for (int i = 0; i < sizeof(biomes) / sizeof(biomes[0]); i++) {
+					//	if ((i - 1.0f) / n <= l && l <= (i + 1.0f) / n)
+					//		y += (-abs(n * l - i) + 1) * biomes[i]->getValueAt((x / scale) + posX, (z / scale) + posY);
+					//}
+					for (int i = 0; i < n; i++) {
+						y += -abs(l) * biomes[i]->getValueAt(x + posX, z + posY);
+					}					
 					
 					char ch, c;
 					mapValue(y / sensitivity, ch, c);
