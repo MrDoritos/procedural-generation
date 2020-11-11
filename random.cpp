@@ -89,6 +89,19 @@ float perlin::interpolated_noise(float x, float y)
 
 float perlin::octaves = 8.0f;
 float perlin::persistence = 0.5f;
+float perlin::lacunarity = 1.0f;
+
+float perlin::getPerlin(float x, float y, int octaves, float persistence) {
+    float total = 0;
+
+    for(int i=0; i<octaves-1; i++)
+    {
+        float frequency = pow(2,i);
+        float amplitude = pow(persistence,i);
+        total = total + interpolated_noise(x * frequency, y * frequency) * amplitude;
+    }
+    return total;
+}
 
 float perlin::getPerlin(float x, float y)
 {
@@ -104,6 +117,15 @@ float perlin::getPerlin(float x, float y)
         total = total + interpolated_noise(x * frequency, y * frequency) * amplitude;
     }
     return total;
+}
+ 
+float perlin::getNormal(float omax, float omin, float max, float min, float value) {
+	return (max - min) / (omax - omin) * (value - omax) + max;
+}
+
+float perlin::getNormalNoise(float x, float z) {
+	float noise = perlin::getPerlin(x,z);
+	return perlin::getNormal(1,-1,1,0,noise);
 }
  
  /*

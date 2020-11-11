@@ -19,6 +19,9 @@ class perlin {
 		//static float dotGridGradient(int ix, int iy, float x, float y);
 		//static float getPerlin(float x, float y);
 		static float getPerlin(float x, float y);
+		static float getPerlin(float x, float y, int octaves, float persistence);
+		static float getNormal(float omax, float omin, float max, float min, float value);
+		static float getNormalNoise(float x, float z);
 		static float cosine_interpolate(float a, float b, float x);
 		static float smooth_noise_2D(float x, float y);
 		static float interpolated_noise(float x, float y);
@@ -26,6 +29,7 @@ class perlin {
 		
 		static float octaves;
 		static float persistence;
+		static float lacunarity;
 		
 	private:
 		/*
