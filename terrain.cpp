@@ -9,13 +9,15 @@
 #include <vector>
 #include <time.h>
 
+#include "colorMappingFaster.h"
+
 class terrain {
 	public:	
 		int width, height;
 		int size;
 	
-		char* cb;
-		char* fb;		
+		color_t* cb;
+		wchar_t* fb;		
 		
 		bool overlay;
 		bool run;
@@ -58,8 +60,8 @@ class terrain {
 		
 		//Display the noise to the camera; print to screen.
 		void showNoiseMap(float* map, int mapDepth, int mapWidth) {
-			const auto generateValue = [](float* normal, char* color, char* character) {
-				const char v[] = { " .:-=+%*@#" };
+			const auto generateValue = [](float* normal, color_t* color, wchar_t* character) {
+				const wchar_t v[] = { L" .:-=+%*@#" };
 				float value = *normal;
 				
 				const auto getChar = [value,v](float min, float max) {
@@ -67,6 +69,12 @@ class terrain {
 					float nom = (val / max);
 					return v[int(floorf(nom * 10))];
 				};
+				
+				if (value > 1.0f) value = 1.0f;
+				if (value < 0.0f) value = 0.0f;
+				double normGreen = value * 254;
+				getDitherColored(0,(int)normGreen, 0, character, color);
+				return;
 				
 				//Terrain color, and characters to represent a change in elevation / distinguish changes in land color
 				if(terrain::range(value, 0, 25)) {
@@ -99,7 +107,8 @@ class terrain {
 				for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
 					int colorIndex = zIndex * mapWidth + xIndex;
 					float normal = map[(zIndex * mapWidth) + xIndex];				
-					char color = 0, character = 0;
+					color_t color = 0;
+					wchar_t character = 0;
 					generateValue(&normal, &color, &character);
 					cb[colorIndex] = color;
 					fb[colorIndex] = character;
@@ -110,7 +119,8 @@ class terrain {
 			if (overlay)
 			for (int xIndex = 0; xIndex < mapWidth; xIndex++) {
 				float normal = map[(1 * width) + xIndex];
-				char color = 0, character = 0;
+				color_t color = 0;
+				wchar_t character = 0;
 				float bad = normal;
 				generateValue(&normal, &color, &character); //
 				float nN = normal * (modifiedHeight);
@@ -257,7 +267,7 @@ class terrain {
 			
 			
 			const auto generateValue = [](float normal, pixel* pixel) {
-				const char v[] = { " .:-=+%*#@" };
+				const wchar_t v[] = { L" .:-=+%*#@" };
 				float value = normal;
 				
 				const auto convertRange = [value,v](float min, float max) {
@@ -368,7 +378,8 @@ class terrain {
 		void newScreenshot() {}
 		
 		void mapv(double value, pixel* p) {
-			char ch, color;
+			wchar_t ch;
+			color_t color;
 			
 			p->red = value * 255;
 			p->alpha = 255;
@@ -385,8 +396,8 @@ class terrain {
 			int ox, oy;
 			int sx, sy;
 			double px, py;
-			char* cb;
-			char* fb;
+			color_t* cb;
+			wchar_t* fb;
 			std::mutex mux;
 			bool alive = true;
 			std::condition_variable cvStart;
@@ -411,7 +422,8 @@ class terrain {
 					for (int x = ox; x < sx; x++) {
 						for (int y = oy; y < sy; y++) {
 							double noise = getMasterNoise(x + px, y + py);
-							char c, color;
+							wchar_t c;
+							color_t color;
 							mapValue(noise, c, color);
 							fb[(y - oy) * (sx - ox) + (x - ox)] = c;
 							cb[(y - oy) * (sx - ox) + (x - ox)] = color;
@@ -429,8 +441,8 @@ class terrain {
 		void initThreadPool(int width, int height) {			
 			for (int i = 0; i < maxThreads; i++) {
 				workers[i].alive = true;
-				workers[i].cb = new char[height * (width / maxThreads)];
-				workers[i].fb = new char[height * (width / maxThreads)];
+				workers[i].cb = new color_t[height * (width / maxThreads)];
+				workers[i].fb = new wchar_t[height * (width / maxThreads)];
 				workers[i].thread = std::thread(&workerThread::createTerrain, &workers[i]);
 			}
 		}
@@ -451,7 +463,7 @@ class terrain {
 					for (int y = worker->oy; y < worker->sy; y++) {
 						fb[(y * width) + x] = worker->fb[((y - worker->oy) * (worker->sx - worker->ox)) + (x - worker->ox)];
 						cb[(y * width) + x] = worker->cb[((y - worker->oy) * (worker->sx - worker->ox)) + (x - worker->ox)];
-						//fb[(y * (i * sectionWidth)) + x] = '#';
+						//fb[(y * (i * sectionWidth)) + x] = L'#';
 						// = worker->fb[y * worker->sx + x];
 						//cb[(y * width) + x] = worker->cb[((y - worker->oy) * width) + (x - worker->ox)];
 					}
@@ -459,9 +471,15 @@ class terrain {
 			}
 		}
 			
-		static void mapValue(double value, char& ch, char& color) {
-			const char  clvls[] = " -+##+- ";
-			const char colors[] = { FBLUE, FWHITE, FYELLOW, FGREEN, FGREEN };
+		static void mapValue(double value, wchar_t& ch, color_t& color) {
+			if (value > 1.0f) value = 1.0f;
+			if (value < 0.0f) value = 0.0f;
+			double normGreen = value * 254;
+			getDitherColored(0,(int)normGreen, 0, &ch, &color);
+			return;
+			
+			const wchar_t  clvls[] = L" -+##+- ";
+			const color_t colors[] = { FBLUE, FWHITE, FYELLOW, FGREEN, FGREEN };
 			
 			const int groups = sizeof(colors) - 1;
 			
@@ -551,7 +569,8 @@ class terrain {
 						y += -abs(l) * biomes[i]->getValueAt(x + posX, z + posY);
 					}					
 					
-					char ch, c;
+					wchar_t ch;
+					color_t c;
 					mapValue(y / sensitivity, ch, c);
 					fb[int((z * width) + x)] = ch;
 					cb[int((z * width) + x)] = c;
@@ -562,7 +581,8 @@ class terrain {
 			if (overlay)
 			for (int xIndex = 0; xIndex < width; xIndex++) {
 				double normal = getMasterNoise(xIndex, 1);
-				char color = 0, character = 0;
+				color_t color = 0;
+				wchar_t character = 0;
 				float bad = normal;
 				mapValue(normal, character, color);
 				double nN = normal * (modifiedHeight);
@@ -615,8 +635,8 @@ class terrain {
 		}
 	
 		void allocate() {
-			cb = new char[width * height];
-			fb = new char[width * height];
+			cb = new color_t[width * height];
+			fb = new wchar_t[width * height];
 			map = new float[width * height];
 			clear();
 		}
@@ -627,8 +647,8 @@ class terrain {
 		}
 	
 		void clearBuffer() {
-			memset(fb, ' ', width * height);
-			memset(cb, FWHITE | BBLACK, width * height);			
+			memset(fb, ' ', width * height * sizeof(wchar_t));
+			memset(cb, FWHITE | BBLACK, width * height * sizeof(color_t));			
 		}
 	
 		void write() {

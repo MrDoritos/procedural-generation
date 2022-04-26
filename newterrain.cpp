@@ -3,6 +3,7 @@
 #include "PerlinNoise.h"
 #include <math.h>
 #include <vector>
+#include "colorMappingFaster.h"
 
 struct state_t {
 	float posX;
@@ -14,7 +15,9 @@ struct state_t {
 } state;
 
 struct distribution_t {
-	virtual float distribute(float num);
+	virtual float distribute(float num) {
+		return num;
+	};
 };
 
 struct perlin_redistribute_t : public distribution_t {
@@ -59,6 +62,8 @@ struct perlin_redistribute_t : public distribution_t {
 		
 		//Simplify
 		//  (2.718 ^ ((((x - u) / a)^2)*-.5)) * (1 / (a * sqrt(6.28)))
+		
+		return x;
 	}
 } perlin_redistribute;
 
@@ -114,79 +119,79 @@ struct climate_t {
 } climate;
 
 struct biome_t {
-	virtual void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) {
+	virtual void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) {
 		ch = L'#';
 		co = FBLACK | BWHITE;
 	}
 };
 struct desert_b : biome_t { 
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '\\';
 		co = BYELLOW | FWHITE;
 	}
 };
 struct plains_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '_';
 		co = BGREEN | FWHITE;
 	}	
 };
 struct forest_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '&';
 		co = BGREEN | FWHITE;
 	}	
 };
 struct mountains_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '^';
 		co = BBLACK | FWHITE | 0b10000000;
 	}		
 };
 struct tundra_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '-';
 		co = BWHITE | FWHITE;
 	}		
 };
 struct tiaga_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '.';
 		co = FMAGENTA | BWHITE | 0b10000000;
 	}		
 };
 struct jungle_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '&';
 		co = BGREEN | FWHITE | 0b10000000;
 	}		
 };
 struct mesa_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '/';
 		co = BRED | FYELLOW;
 	}		
 };
 struct ice_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '/';
 		co = BWHITE | FWHITE | 0b00001000;
 	}		
 };
 struct lake_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '~';
 		co = BBLUE | FCYAN;
 	}			
 };
 struct river_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '~';
 		co = BBLUE | FWHITE;
 	}			
 };
 struct ocean_b : biome_t {
-	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, char& co) override {
+	void generate(int x, int z, float noise0, float noise1, wchar_t& ch, color_t& co) override {
 		ch = '~';
 		co = BBLUE | FWHITE | 0b10000000;
 	}			
@@ -195,7 +200,7 @@ struct ocean_b : biome_t {
 struct region_t {
 	std::vector<biome_t*> biomeRegistry;
 	
-	virtual void generate(int x, int z, float noise0, wchar_t& ch, char& co) {
+	virtual void generate(int x, int z, float noise0, wchar_t& ch, color_t& co) {
 		//float noise1 = perlin_redistribute.distribute(perlin::getPerlin(x/6.8f,z/6.8f)) + 0.5f;
 		float noise1 = perlin::getNormalNoise(x / 6.8f, z / 6.8f);
 		biome_t* bio = biomeRegistry[(int)floorf(noise1 * biomeRegistry.size())];
@@ -266,6 +271,18 @@ struct newNoiseFunction_t {
 	#define c3b (BWHITE | 0b10000000)
 
 	static void getGradientGrayscale3(double value, double min, double max, wchar_t* ch, color_t* color) {
+		if (value > max)		
+			value = max;
+		if (value < min)
+			value = min;
+		float normm = max - min;
+		float normv = value - min;
+		float norm = normv / normm;
+		double colorN = norm * 254;
+		getDitherColored(colorN, colorN, colorN, ch, color);
+		return;
+		
+		/*
 		const wchar_t clvls[] = L" ░▒░ ░▒░░";	
 		const color_t colors[] = {
 			c0f | c0b,
@@ -281,12 +298,7 @@ struct newNoiseFunction_t {
 		
 		const int clvlCount = 8;
 		const int colorCount = 8;
-		/*
-		if (value > 1.0d)
-			value = 1.0d;
-		if (value < 0.0d)
-			value = 0.0d;
-		*/
+		
 		if (value > max)		
 			value = max;
 		if (value < min)
@@ -297,6 +309,7 @@ struct newNoiseFunction_t {
 		
 		*ch = clvls[int(norm * clvlCount)];
 		*color = colors[int(norm * colorCount)];
+		*/
 	}
 	
 	static void colorize(float value, float min, float max, wchar_t *ch, char *co) {
@@ -361,7 +374,7 @@ struct newNoiseFunction_t {
 		
 	}
 	
-	static void haveFun(float x, float z, wchar_t *ch, char *co) {
+	static void haveFun(float x, float z, wchar_t *ch, color_t *co) {
 		/*
 		//float n = perlin::getPerlin(perlin::getPerlin(z,x), perlin::getPerlin(x,z));
 		float n = perlin::getPerlin(x,z);
@@ -450,7 +463,7 @@ struct newTerrain_t {
 		/*DRY*/	{11,10,10,6,5,4,3,1,0},
 	};
 	
-	void landmassGenerate(float x, float z, float noise0, wchar_t& ch, char& co) {
+	void landmassGenerate(float x, float z, float noise0, wchar_t& ch, color_t& co) {
 		auto between = [](float _noise, float min, float max) {
 			return (_noise >= min && _noise <= max);
 		};
@@ -477,7 +490,7 @@ struct newTerrain_t {
 		
 	}
 	
-	void generate(float x, float z, wchar_t& ch, char& co) {
+	void generate(float x, float z, wchar_t& ch, color_t& co) {
 		ch = ' ';
 		co = FBLACK|BWHITE;
 		float noise = perlin::getPerlin(x + perlin::getPerlin(x,z), z - perlin::getPerlin(x,z), 2, 0.5f);
@@ -504,7 +517,7 @@ struct newTerrain_t {
 		*/
 	}
 	
-	void generateClimate(int x, int z, wchar_t& ch, char& co) {
+	void generateClimate(int x, int z, wchar_t& ch, color_t& co) {
 		float noise = perlin_redistribute.distribute(perlin::getPerlin(x/state.scale,z/state.scale)) + 0.5f;
 		//perlin::getNormalNoise(x / state.scale, z / state.scale);
 		//float temp = climate.temperatureAt(x / state.scale,60,z / state.scale);
@@ -538,11 +551,13 @@ void handleInput(int key) {
 			state.posX += 1 / (state.scale / 5);
 			break;
 		case '+':
+		case 'z':
 			state.actScale++;
 			//state.scale += 0.1f;
 			state.scale = pow(state.actScale, 1.5);
 			break;
-		case '-':			
+		case '-':	
+		case 'x':
 			if (state.actScale - 1 < 1)
 				state.actScale -= 0.1f;
 			else
@@ -649,6 +664,7 @@ int wmain() {
 	//while (!adv::ready);
 	console::sleep(100);
 	adv::setThreadState(false);
+	adv::setDoubleWidth(true);
 	int key = 0;
 	fprintf(stderr, "Here\r\n");
 	state.posX = 977.0f;
@@ -668,8 +684,8 @@ int wmain() {
 				wchar_t ch;
 				color_t co;
 				//newTerrain.generateClimate(x + state.posX, z + state.posZ, ch, co);
-				//newTerrain.generate((x / state.scale) + state.posX, (z / state.scale) + state.posZ, ch, co);
-				newNoiseFunction_t::haveFun((x / state.scale) + state.posX, (z / state.scale) + state.posZ, &ch, &co);
+				newTerrain.generate((x / state.scale) + state.posX, (z / state.scale) + state.posZ, ch, co);
+				//newNoiseFunction_t::haveFun((x / state.scale) + state.posX, (z / state.scale) + state.posZ, &ch, &co);
 				adv::write(x,z,ch,co);				
 				//adv::write(x,z,L'#',FWHITE|BBLACK);
 			}
@@ -677,9 +693,9 @@ int wmain() {
 		
 		char buf[100];
 		snprintf(&buf[0], 100, "[%f,%f] scale:%f camwidth:%f (%f minecraft blocks) view:%i", state.posX, state.posZ, state.scale, adv::width/state.scale, adv::width/state.scale * 100.0d, state.heightMapView);
-		adv::write(0,0,&buf[0],FBLUE|BWHITE);
 		//fprintf(stderr, "::3\r\n");
 		adv::draw();
+		console::write(0,0,&buf[0],FBLUE|BWHITE);
 	} while (!HASKEY(key = console::readKey(), VK_ESCAPE));
 	
 	return 0;
